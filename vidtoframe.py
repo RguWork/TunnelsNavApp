@@ -51,6 +51,9 @@ def vid_to_frame(name, video_path, train_dir, val_dir, test_dir):
     return('generated',frame_count,'frames from video',video_path,'with frame size', frame_shape)
 
 
+    
+
+
 #test, cd to video folder first
 # print(vid_to_frame('CV_Vids/B6/B6H3_NorthRight.MOV','testframes'))
 print(vid_to_frame('B6H3_NorthRightcopy', '/Users/rgu/Desktop/CV Final Project/data/B6H3_NorthRightcopy.MOV','/Users/rgu/Desktop/CV Final Project/data/trainframes','/Users/rgu/Desktop/CV Final Project/data/validframes','/Users/rgu/Desktop/CV Final Project/data/testframes'))
