@@ -15,12 +15,14 @@ TITLE_FORMAT = BLDG+HALL+"_"+DIRECTION
 def valid_video_title(title):
     '''
     Returns the generalized video title (without the trial number)
+
     Input:
     title: string, video title in data format
 
     Output:
     string, title without the sample number at the end. 
-        If the video title is in the form of X-NE-37.mp4 then it is the 37th recording of room X.
+        If the video title is in the form of X-NE-37.mp4 then it is the 37th recording of room X in
+        the direction of NE.
         Returning just X
     '''
     title_match = re.match(TITLE_FORMAT, title)
@@ -61,12 +63,15 @@ def verify_videos(video_path):
 
 def scan_videos(video_path):
     '''
+    Creates a generator that yields a valid video title and a VideoCapture object for frame capturing and video reading.
+
     Input:
     folder_path: string, path of directory containing data as videos
 
     Output:
     Iterator[str, VideoCapture]: iterator over each (video_name, video) in the folder
     '''
+    video_extensions = ['.mp4', '.avi', '.mov', '.mkv']
 
     with os.scandir(video_path) as folder_iterator:
         for folder in folder_iterator:
@@ -74,7 +79,8 @@ def scan_videos(video_path):
                 continue
             with os.scandir(folder.path) as video_iterator:
                 for video in video_iterator:
-                    if not video.is_file():
+                    if not video.is_file() or not video.name.lower().endswith(tuple(video_extensions)):
+                        #if file is not vid do not yield it
                         continue
                     title = valid_video_title(video.name)
                     video = cv2.VideoCapture(video.path)
@@ -83,6 +89,10 @@ def scan_videos(video_path):
 
 def total_frames_per_room(video_iterator):
     '''
+    Cuts the last second of videos, and stores their frame data in a dictionary.
+    Combines frame count of videos with the same hallway and same direction.
+    Prints the min number of frames. Returns the dictionary.
+
     Input:
     video_iterator: Iterator[(str, VideoCapture)], iterator over videos of a (room, direction) with possible multiple samples                 
 
@@ -100,6 +110,11 @@ def total_frames_per_room(video_iterator):
 
 def downsample_frames(video_iterator, room_frame_totals):
     '''
+    Video will have the first second of frames cut off. 
+    Returns a generator that yields a tuple of video title in the format of hallway name and direction,
+    the frame, the frame index of the frame after downsampling, 
+    and the number of valid frames of the video after the edges are cut off.
+
     Input:
     video_iterator: Iterator[(str, VideoCapture)], iterator over videos of a (room, direction) with possible multiple samples
     room_frame_totals: Map[str, int], mapping from (room, direction) to number of frames belonging to it in video_iterators' videos.
@@ -139,8 +154,10 @@ def downsample_frames(video_iterator, room_frame_totals):
             next_frame_to_capture += frames_per_sample
             yield (title, frame, frame_index, last_valid_frame)
 
-def upload_frame_to(frame, name, split):
+def upload_frame_to(frame, frame_index, name, split):
     '''
+    #writes a frame with the name and split type (train, validation, test)
+
     Input:
     frame: MatLike, image frame
     name: str, location name, (room, direction), of the frame
@@ -153,16 +170,21 @@ def upload_frame_to(frame, name, split):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    image_path = os.path.join(output_dir, f"{time.time_ns()}.png")
+    image_path = os.path.join(output_dir, f"{frame_index}.png")
     if os.path.exists(image_path):
         raise Exception("Trying to overwrite an image frame that already exists")
     
-    frame_uploaded = cv2.imwrite(image_path, frame)
+    resized_frame = cv2.resize(frame, (540, 960), interpolation=cv2.INTER_AREA)
+    frame_uploaded = cv2.imwrite(image_path, resized_frame)
+
     if not frame_uploaded:
         raise Exception("Failed to upload a frame on", name)
 
 def upload_split_sequentially(frame_iterator, train_percentage, validation_percentage, testing_percentage):
     '''
+    uploads all of the frames in a frame generator based on a given sequential
+    data percentage split
+
     Input:
     frame_iterator: Iterator[(str, MatLike)], Iterator over (frame name, frame) pairs
     *_percentage: float, percentage of frames to be part of that split of the dataset
@@ -180,26 +202,16 @@ def upload_split_sequentially(frame_iterator, train_percentage, validation_perce
             "Validation" if position < train_percentage + validation_percentage else \
             "Test"
 
-        upload_frame_to(frame, name, split)
+        upload_frame_to(frame, frame_index, name, split)
 
 def upload_dataset(split_data_path, video_data_path, train_percentage, validation_percentage, testing_percentage):
-    verify_dataset_not_parsed(split_data_path)
-    verify_videos(video_data_path)
+    verify_dataset_not_parsed(split_data_path) #creates data set repositories and stops if directories already exist
+    verify_videos(video_data_path) #checks if all raw videos are labelled correctly
 
-    video_it = scan_videos(video_data_path)
-    tfpr = total_frames_per_room(scan_videos(video_data_path))
-    frame_it = downsample_frames(video_it, tfpr)
+    video_it = scan_videos(video_data_path) #creates a generator that yields a valid video title and VideoCapture object
+    tfpr = total_frames_per_room(scan_videos(video_data_path)) #returns frame size dicitonary
+    frame_it = downsample_frames(video_it, tfpr) #returns a generator that yields frame data of downsampled videos
     
-    upload_split_sequentially(frame_it, train_percentage, validation_percentage, testing_percentage)
+    upload_split_sequentially(frame_it, train_percentage, validation_percentage, testing_percentage) #creates all sequentially split data
 
 upload_dataset("Data", "Videos", 0.7, 0.15, 0.15)
-
-<<<<<<< HEAD
-    
-
-
-#test, cd to video folder first
-# print(vid_to_frame('CV_Vids/B6/B6H3_NorthRight.MOV','testframes'))
-print(vid_to_frame('B6H3_NorthRightcopy', '/Users/rgu/Desktop/CV Final Project/data/B6H3_NorthRightcopy.MOV','/Users/rgu/Desktop/CV Final Project/data/trainframes','/Users/rgu/Desktop/CV Final Project/data/validframes','/Users/rgu/Desktop/CV Final Project/data/testframes'))
-=======
->>>>>>> fd6465b276ce44f91f80dfb167c3933f37b64f4d
