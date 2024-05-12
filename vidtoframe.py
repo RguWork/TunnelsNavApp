@@ -2,7 +2,7 @@ import cv2
 import os
 import re
 import collections
-import time
+import random
 
 FRAME_RATE = 60
 SECONDS_TO_SKIP_AT_VIDEO_EDGES = 1
@@ -108,16 +108,17 @@ def total_frames_per_room(video_iterator):
     print("min number of frames is", min(frame_map.values()))
     return frame_map
 
-def downsample_frames(video_iterator, room_frame_totals):
+def downsample_frames(video_iterator, room_frame_totals, frame_value):
     '''
     Video will have the first second of frames cut off. 
     Returns a generator that yields a tuple of video title in the format of hallway name and direction,
-    the frame, the frame index of the frame after downsampling, 
+    the frame, the frame index of the frame after downsampling to a given frame value, 
     and the number of valid frames of the video after the edges are cut off.
 
     Input:
     video_iterator: Iterator[(str, VideoCapture)], iterator over videos of a (room, direction) with possible multiple samples
     room_frame_totals: Map[str, int], mapping from (room, direction) to number of frames belonging to it in video_iterators' videos.
+    frame_value: int, determines the number of frames the code downsamples to. defaults to the minimum number of frames of all the videos.
                         
     Output:
     Iterator[(str, MatLike, int, int)], iterator over each "room name", image frame pair. 
@@ -125,12 +126,14 @@ def downsample_frames(video_iterator, room_frame_totals):
                                         The last two integers are the index of the frame (excluding edges)
                                         and the number of valid frames (excluding edges). 
     '''
-    minimum_frame_count = int(min(room_frame_totals.values()))
+    if frame_value == -1: #if no set frames, downsamples to minimum frames
+        frame_value = int(min(room_frame_totals.values()))
+
     for title, video in video_iterator:
         video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         room_frame_count = int(room_frame_totals[title])
 
-        frames_per_sample = room_frame_count / minimum_frame_count
+        frames_per_sample = room_frame_count / frame_value
         
         #Skip frames at video start
         for i in range(0, FRAMES_TO_SKIP_AT_VIDEO_EDGES):
@@ -204,14 +207,64 @@ def upload_split_sequentially(frame_iterator, train_percentage, validation_perce
 
         upload_frame_to(frame, frame_index, name, split)
 
-def upload_dataset(split_data_path, video_data_path, train_percentage, validation_percentage, testing_percentage):
+def upload_split_randomly(frame_iterator, train_percentage, validation_percentage, testing_percentage):
+    '''
+    uploads all of the frames in a frame generator based on a given random
+    data percentage split
+
+    Input:
+    frame_iterator: Iterator[(str, MatLike)], Iterator over (frame name, frame) pairs
+    *_percentage: float, percentage of frames to be part of that split of the dataset
+                        
+    Output:
+    None, Errors if percentages don't sum to 1
+    '''
+    if train_percentage + validation_percentage + testing_percentage != 1:
+        raise Exception("Train, validation, testing splits don't add to 1, got:", train_percentage, validation_percentage, testing_percentage)
+    
+    #converts frame iterator to list and shuffles frames
+    frames = list(frame_iterator)
+    total_frames = len(frames)
+    random.shuffle(frames)
+    
+    train_end = int(train_percentage * total_frames)
+    validation_end = train_end + int(validation_percentage * total_frames)
+    
+    for frame_index, (name, frame) in enumerate(frames):
+        if frame_index < train_end:
+            split = "Train"
+        elif frame_index < validation_end:
+            split = "Validation"
+        else:
+            split = "Test"
+
+        upload_frame_to(frame, frame_index, name, split)
+
+
+def upload_dataset(split_data_path, video_data_path, train_percentage, validation_percentage, testing_percentage, type, frame_value = -1):
     verify_dataset_not_parsed(split_data_path) #creates data set repositories and stops if directories already exist
     verify_videos(video_data_path) #checks if all raw videos are labelled correctly
 
     video_it = scan_videos(video_data_path) #creates a generator that yields a valid video title and VideoCapture object
     tfpr = total_frames_per_room(scan_videos(video_data_path)) #returns frame size dicitonary
-    frame_it = downsample_frames(video_it, tfpr) #returns a generator that yields frame data of downsampled videos
+    frame_it = downsample_frames(video_it, tfpr, frame_value) #returns a generator that yields frame data of downsampled videos
     
-    upload_split_sequentially(frame_it, train_percentage, validation_percentage, testing_percentage) #creates all sequentially split data
+    if type == 'sequentially':
+        upload_split_sequentially(frame_it, train_percentage, validation_percentage, testing_percentage) #creates all sequentially split data
+    elif type == 'randomly':
+        upload_split_randomly(frame_it, train_percentage, validation_percentage, testing_percentage)
+    else:
+        raise Exception("Not a type of split")
 
-upload_dataset("Data", "Videos", 0.7, 0.15, 0.15)
+
+
+#---
+def find_framebounds(split_data_path, video_data_path):
+    verify_dataset_not_parsed(split_data_path) 
+    verify_videos(video_data_path) 
+
+    tfpr = total_frames_per_room(scan_videos(video_data_path))
+    print(int(min(tfpr.values())), int(max(tfpr.values())))
+
+find_framebounds("Data", "Videos")
+upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 500) #test to see if framevalue is appropriate
