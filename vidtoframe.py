@@ -267,4 +267,4 @@ def find_framebounds(split_data_path, video_data_path):
     print(int(min(tfpr.values())), int(max(tfpr.values())))
 
 find_framebounds("Data", "Videos")
-upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 500) #test to see if framevalue is appropriate
+upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 'randomly', 500) #test to see if framevalue is appropriate
