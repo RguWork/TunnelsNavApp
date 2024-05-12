@@ -1,0 +1,4 @@
+name: cvfinalproject
+channels:
+  - defaults
+prefix: /Users/rgu/miniconda3/envs/cvfinalproject
