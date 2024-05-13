@@ -182,7 +182,7 @@ def upload_frame_to(frame, upload_name, room_name, split):
     if os.path.exists(image_path):
         raise Exception("Trying to overwrite an image frame that already exists")
     
-    resized_frame = cv2.resize(frame, (540, 960), interpolation=cv2.INTER_AREA)
+    resized_frame = cv2.resize(frame, (224, 224), interpolation=cv2.INTER_AREA)
     frame_uploaded = cv2.imwrite(image_path, resized_frame)
 
     if not frame_uploaded:
@@ -264,4 +264,4 @@ def find_framebounds(split_data_path, video_data_path):
     print(int(min(tfpr.values())), int(max(tfpr.values())))
 
 #find_framebounds("Data", "Videos")
-upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 'randomly', 600) #test to see if framevalue is appropriate
+upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 'randomly', 360) #test to see if framevalue is appropriate
