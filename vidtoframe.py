@@ -106,7 +106,7 @@ def total_frames_per_room(video_iterator):
     for title, video in video_iterator:
         frame_map[title] += video.get(cv2.CAP_PROP_FRAME_COUNT) - 2*FRAMES_TO_SKIP_AT_VIDEO_EDGES
     
-    print("min number of frames is", min(frame_map.values()))
+    #print("min number of frames is", min(frame_map.values()))
     return frame_map
 
 def pertubate_image(frame, max_theta, max_delta_x, max_delta_y):
@@ -155,11 +155,11 @@ def sample_frames(video_iterator, room_frame_totals, resample_value):
 
             # If upsampling is needed perform it
             for upsample_index in range(indices_to_sample[frame_index] - 1):
-                transformed_image = pertubate_image(frame, 5, 8, 8)
+                transformed_image = pertubate_image(frame, 4, 6, 6)
                 yield (title, transformed_image, label_frame_count[title], upsample_index + 1)
                 label_frame_count[title] += 1
 
-        print("------")
+        print(title)
 
 def upload_frame_to(frame, upload_name, room_name, split):
     '''
@@ -240,43 +240,6 @@ def upload_split_randomly(frame_iterator, train_percentage, validation_percentag
         upscale_flag = f"u{upscale_count} "if upscale_count > 0 else ""
         upload_frame_to(frame, f"{frame_index}{upscale_flag}", name, split)
 
-def USS(video_it, tfpr, upsample_to):
-    upsample_map = dict() # video_name -> multiset(upsample_index)
-    for name, frame, index, frame_count in video_it:
-        print(name, index, frame_count)
-        #if frame_count >= upsample_to:
-        #    yield name, frame, index, upsample_to
-    
-def a(video_it, upsample_to):
-    print("Derpe")
-    return
-    upsample_map = dict() # video_name -> multiset(upsample_index)
-    for name, frame, index, frame_count in video_it:
-        print(name, frame, index, frame_count)
-        
-        return
-        if frame_count >= upsample_to:
-            yield name, frame, index, upsample_to
-            continue
-
-        if name not in upsample_map:
-            scale_factor = max(1, (frame_count - 1) / (upsample_to - 1))
-            upsample_map[name] = collections.Counter([int(i * scale_factor) for i in range(upsample_to)])
-        
-        yield name, frame, index, upsample_to
-        for upsample_index in range(upsample_map[name] - 1):
-            file_name, extension = os.path.splitext(file.name)
-
-            theta_degrees = random.randint(-10, 10)
-            x_offset = random.randint(-10, 10)
-            y_offset = random.randint(-10, 10)
-            transformed_image = affine_transform.rotate_image(frame, theta_degrees)
-            transformed_image = affine_transform.translate_image(transformed_image, x_offset, y_offset)
-            new_name = file_name + f"-{upscale_index + 2}" + extension
-        
-
-        pass
-
 def upload_dataset(split_data_path, video_data_path, train_percentage, validation_percentage, testing_percentage, type, frame_value = -1):
     verify_dataset_not_parsed(split_data_path) #creates data set repositories and stops if directories already exist
     verify_videos(video_data_path) #checks if all raw videos are labelled correctly
@@ -292,8 +255,6 @@ def upload_dataset(split_data_path, video_data_path, train_percentage, validatio
     else:
         raise Exception("Not a type of split")
 
-
-
 #---
 def find_framebounds(split_data_path, video_data_path):
     verify_dataset_not_parsed(split_data_path) 
@@ -303,4 +264,4 @@ def find_framebounds(split_data_path, video_data_path):
     print(int(min(tfpr.values())), int(max(tfpr.values())))
 
 #find_framebounds("Data", "Videos")
-upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 'randomly', 1000) #test to see if framevalue is appropriate
+upload_dataset("Data", "Videos", 0.7, 0.15, 0.15, 'randomly', 600) #test to see if framevalue is appropriate
