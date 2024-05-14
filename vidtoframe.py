@@ -8,7 +8,7 @@ import affine_transform
 FRAME_RATE = 60
 SECONDS_TO_SKIP_AT_VIDEO_EDGES = 1
 FRAMES_TO_SKIP_AT_VIDEO_EDGES = FRAME_RATE * SECONDS_TO_SKIP_AT_VIDEO_EDGES
-BLDG = r"([EB]\d+)"
+BLDG = r"([EBSL]\d+)"
 HALL = r"([A-Z]\d+)"
 DIRECTION = r"(NorthEast|SouthEast|NorthWest|SouthWest|North|South|East|West|)"
 TITLE_FORMAT = BLDG+HALL+"_"+DIRECTION
